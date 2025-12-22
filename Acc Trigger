@@ -1,17 +1,4 @@
 
-    public static   List<Account>  triggerNew;  
-    public static   List<Account>  triggerOld; 
-    public static   Map<Id,Account>  triggerNewMap;  
-    public static   Map<Id,Account>  triggerOldMap;      
-    
-    public  AccountTriggerHandler()
-    {
-        triggerNew = (List<Account>)Trigger.new ;
-        triggerOld = (List<Account>)Trigger.old ;
-        triggerNewMap = (Map<Id,Account>)Trigger.newMap;
-        triggerOldMap = (Map<Id,Account>)Trigger.oldMap;
-        
-    }
     
     
     
