@@ -1,0 +1,165 @@
+
+    public static   List<Account>  triggerNew;  
+    public static   List<Account>  triggerOld; 
+    public static   Map<Id,Account>  triggerNewMap;  
+    public static   Map<Id,Account>  triggerOldMap;      
+    
+    public  AccountTriggerHandler()
+    {
+        triggerNew = (List<Account>)Trigger.new ;
+        triggerOld = (List<Account>)Trigger.old ;
+        triggerNewMap = (Map<Id,Account>)Trigger.newMap;
+        triggerOldMap = (Map<Id,Account>)Trigger.oldMap;
+        
+    }
+    
+    
+    
+    public static void doHandler()
+    {
+        
+        Switch on Trigger.OperationType
+        {
+            When BEFORE_INSERT
+            {
+                SetRatingAndType(TriggerNew);
+            }
+            
+            
+            
+            When BEFORE_UPDATE
+            {
+                SetRatingAndType(TriggerNew);
+                
+                for(Account acc :TriggerNew)
+                {
+                    if(TriggerOldMap.get(acc.Id).ParentId !=null && acc.ParentId != null && TriggerOldMap.get(acc.Id).ParentId !=acc.ParentId)
+                    {
+                        acc.ParentId.addError(Label.Acc_Parent_Error);
+                    }
+                    
+                    
+                    Integer count = Integer.ValueOf (Label.Account_update_count);
+                    Decimal currentCount = TriggerOldmap.get(acc.Id).Update_Count__c;
+                    
+                    if(currentCount == null)
+                    {
+                        currentCount=0;
+                    }
+                    if(currentCount>= count)
+                    {
+                        acc.addError(Label.Account_update_error); 
+                    }
+                    else
+                    {
+                        acc.Update_Count__c = currentCount+1 ;
+                    }
+                    
+                }
+                
+            }
+            
+            when AFTER_UPDATE
+            { 
+                List<Id> accId = new List<Id>();           
+                
+                Set<Id> AcId = new Set<Id>();
+                Set<Id> AccSet = new Set<Id>();
+                
+                for(Account acc : TriggerNew)
+                {
+                    if(TriggerOldMap.get(acc.Id).Active__c != acc.Active__c &&  acc.Active__c=='No')
+                    {
+                        accId.add(acc.Id);
+                    }
+                    
+                    if(acc.Rating != TriggerOldMap.get(acc.Id).Rating)
+                    {
+                        AcId.add(acc.Id);
+                    }                
+                    AccSet.add(acc.Id);               
+                }
+                List<Contact> conList = [Select Description From Contact Where  AccountId in: AccSet];
+                
+                for(Contact con : conlist)
+                {
+                    con.Description = 'Account info updated';
+                }
+                update conList;
+                
+                List<Opportunity> opplist = [Select  Name, Description,AccountId From Opportunity Where Accountid in:AcId ];
+                
+                for(Opportunity opp : oppList)
+                {
+                    if(TriggerNewMap.get(opp.AccountId).Rating=='Hot')
+                    {
+                        opp.Description = 'High priority Client';
+                    }
+                    else if(TriggerNewMap.get(opp.AccountId).Rating=='Warm')
+                    {
+                        opp.Description = 'Medium  priority Client';
+                    }
+                    else if(TriggerNewMap.get(opp.AccountId).Rating=='Cold')
+                    {
+                        opp.Description = 'Low priority Client';
+                    }
+                    else
+                    {
+                        opp.Description = null;
+                    }
+                }
+                update oppList;
+                
+                if(!accId.isEmpty())
+                {
+                    List<Case> caseList = [Select Id,Status,AccountId From Case where AccountId =:accId];
+                    
+                    for(Case cases : caseList)
+                    {
+                        cases.Status = 'Closed';
+                    }
+                    
+                    if(!caseList.isEmpty())
+                        update caseList;
+                }   
+                
+                
+            }
+            
+            When BEFORE_DELETE 
+            {
+                delFn(triggerOld);
+            }
+            
+        }
+        
+    }
+    
+    
+    public static void delFn( List<Account> accountList)
+    {
+        for(Account acc : accountList)
+        {
+            if(acc.Type=='Prospect')
+            {
+                acc.Type.addError(Label.Acc_delletion_error);
+            }
+        }
+    }
+    
+    public static void SetRatingAndType(List<Account> accountList)
+    {    
+        for(Account acc :accountList)
+        {
+            if(acc.Type==Null)
+            {
+                acc.Type='Prospect';
+            }
+            if(acc.Rating==Null)
+            {
+                acc.Rating='Warm';
+            }
+            
+        }
+        
+    }
