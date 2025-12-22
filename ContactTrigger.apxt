@@ -1,0 +1,129 @@
+Switch on Trigger.OperationType
+    {
+        when BEFORE_INSERT
+        {
+            for(Contact con : Trigger.new)
+            {
+                if(con.Email==Null)
+                {
+                    con.Email.addError(Label.con_mail_error);
+                }
+            }
+        }
+        when BEFORE_UPDATE
+        {
+            for(Contact con : Trigger.new)
+            {
+                if(con.Email==Null)
+                {
+                    con.Email.addError(Label.con_mail_error);  
+                }
+            }
+        }
+        When AFTER_INSERT
+        {
+            
+            Set<Id> accId = new Set<Id>();
+            for(Contact con : Trigger.New) 
+            {
+                if(con.AccountId!=null)
+                {
+                    accId.add(con.AccountId);
+                }
+            }
+            
+            /* List<Account> acclist = [Select Name,Has_Contacts__c From Account Where Id in : accId];
+
+for(Account acList : accList)
+{  
+acList.Has_Contacts__c = true;
+}
+update accList;*/
+            
+            rollup(Trigger.new);
+            
+        }
+        When AFTER_UPDATE
+        {
+            
+            Set<Id>conId = new Set<id>();
+            for(Contact con : Trigger.new )
+            {
+                
+                if(Trigger.oldMap.get(con.Id).Phone != con.Phone)
+                {
+                    conId.add(con.Id);
+                }
+            }
+            if(!conId.isEmpty())
+            {
+                List<Case> caseList = [Select Subject From Case Where ContactId in:conId]; 
+                for(Case cases : caseList)
+                {
+                cases.Subject = 'Updated contact info';
+                }
+                
+                update caseList;
+            }        
+        
+       // rollup(Trigger.new);
+    }
+    
+    When AFTER_DELETE 
+    {
+        rollup(Trigger.old); 
+        List<Account> accList = new  List<Account>();
+        
+        for(Contact con : Trigger.old)
+        {
+            if(con.AccountId!= null)
+            {
+                Account acc = new Account ( Id = con.AccountId, Name = con.LastName);
+                accList.add(acc);                   
+            }
+            
+        }
+        if(!accList.isEmpty())
+            update acclist;
+        
+    }
+    When AFTER_UNDELETE 
+    {
+        rollup(Trigger.new);
+    }
+    
+}
+
+public static void rollup(List<Contact> conList)
+{       
+    Set<Id> accId = new Set<Id>();
+    
+    if(!checkRecursion.isRecursion)
+    {   
+        checkRecursion.isRecursion = true; 
+        for(Contact con : conList)
+        {
+            if(con.AccountId!=null)
+            {
+                accId.add(con.Accountid);
+            }
+        }
+        
+        List<AggregateResult>aggRes = [Select count(Id) conCount,AccountId  
+                                       From Contact
+                                       Where AccountId in:accId
+                                       Group By AccountId];
+        List<Account> newAccList = new List<Account>();
+        
+        for(AggregateResult ar : aggRes)
+        {
+            Account acc = new Account( Id =(Id) ar.get('AccountId'),Number_of_Contacts__c =(Decimal) ar.get('conCount'));
+            
+            newAccList.add(acc);
+        }
+        
+        update newAccList;
+        
+        
+    }
+}
