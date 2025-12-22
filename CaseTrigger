@@ -1,0 +1,26 @@
+ Switch on Trigger.OperationType
+    {
+        when BEFORE_UPDATE
+        {
+            for(Case caseList : Trigger.new)
+            {
+                if(Trigger.oldmap.get(caselist.Id).Status=='Closed' && CaseList.Status=='New')
+                {
+                    caselist.Status.addError(Label.Case_reopen_error);
+                }
+                
+            }
+        }
+        
+        when BEFORE_DELETE
+        {
+            for(Case cases : Trigger.old)
+            {
+                if(cases.Status =='Closed')
+                {
+                    cases.addError(Label.Case_deletion_error);
+                }
+            }
+        }
+        
+    }
