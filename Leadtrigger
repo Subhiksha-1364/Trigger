@@ -1,0 +1,50 @@
+  Switch on Trigger.OperationType
+    {
+        when BEFORE_INSERT
+        {
+            for(Lead leadS : Trigger.new)
+            {
+                if(leadS.Status=='Closed - Converted' || leadS.Status=='Closed - Not Converted')
+                {
+                    leadS.Status.addError(Label.Lead_status_error);
+                }
+                if(leadS.AnnualRevenue>200000)
+                {
+                    leadS.Rating = 'Hot';
+                }
+            }
+        }
+        
+        When BEFORE_UPDATE
+        {
+            for(Lead leadS : Trigger.new)
+            {
+                if(Trigger.OldMap.get(leadS.Id).LeadSource !=null && leadS.LeadSource ==null)
+                {
+                    leadS.LeadSource.addError(Label.Lead_source_error);
+                }
+                if(leadS.AnnualRevenue>200000)
+                {
+                    leadS.Rating = 'Hot';
+                }
+                if(leadS.Status == 'Closed - Not Converted' && leadS.Description == null)
+                {
+                    leadS.Description.addError(Label.Lead_desc_error);
+                }
+            }
+        }
+         When AFTER_INSERT
+         {
+             List<Task> TaskList = new List<Task>();
+             for(Lead newLead : Trigger.new)
+             {
+                 Task t = new Task(Subject = 'Contact the Lead',
+                                   ActivityDate = System.today().addDays(2),
+                                   WhoId = newLead.Id,
+                                   OwnerId = newLead.ownerId);
+                 TaskList.add(t);
+             }
+             insert Tasklist;
+         }
+        
+    }
